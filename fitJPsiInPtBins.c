@@ -178,9 +178,21 @@ void doOneDataFit(TTree *dataTree, TFile *saveFile, float binID[3])
   cout<<"status == "<<fitStatus<<endl;
 
   // Get the output
+  // Create a frame with only the histo and the fit curve
+  int massBins = 60;
+  RooPlot *frameFit = mass.frame(Title("Frame with data and full fit curve"), Bins(massBins));
+  // plot the data
+  inData.plotOn(frameFit, Binning(massBins), DataError(RooAbsData::SumW2));
+  // Plot the full model
+  fitData->plotOn(frameFit, LineColor(kBlack));
+
+  // use this fram to compute the chi2
+  int nParams = r->floatParsFinal().getSize();
+  int ndf = massBins - nParams;
+  double chi2_red = frameFit->chiSquare(nParams);
+
   // --> set the plot of the invariant mass distribution
   RooPlot *frame = mass.frame(Title(Form("m_{#mu#mu} mass distr. - %s - #phi %d", gNeutronClass.c_str(), (int)binID[0])));
-  int massBins = 50;
   inData.plotOn(frame,Binning(massBins));
   fitData->plotOn(frame, LineColor(kBlack));
   if(!excludeJPsi){
@@ -189,9 +201,6 @@ void doOneDataFit(TTree *dataTree, TFile *saveFile, float binID[3])
   }  
   fitData->plotOn(frame,Name("nrBg"), Components(nrBg), LineColor(kBlue+1));
   fitData->paramOn(frame,Layout(0.58, 0.88, 0.8));
-
-  // --> calculate chi^2 and NDOF
-  double chi2 = frame->chiSquare();  // Reduced chi^2 (chi^2/ndf)
 
   // --> do the plot
   TCanvas *c = new TCanvas(Form("m_{#mu#mu} mass distr. - %s - #phi %d", gNeutronClass.c_str(), (int)binID[0]),
@@ -202,7 +211,7 @@ void doOneDataFit(TTree *dataTree, TFile *saveFile, float binID[3])
   TLatex latex;
   latex.SetNDC();
   latex.SetTextSize(0.04); // Set text size
-  latex.DrawLatex(gXpos, gYpos, Form("#chi^{2}/ndf = %.2f", chi2));
+  latex.DrawLatex(gXpos, gYpos, Form("#chi^{2}/ndf = %.2f (%.2f/%d)", chi2_red,chi2_red*ndf,ndf));
   latex.DrawLatex(gXpos, gYpos-0.05, Form("# entries = %.d", inData.numEntries()));
   latex.DrawLatex(gXpos, gYpos-0.10, Form("#it{p}_{T} in (%.2f, %.2f) GeV/#it{c}",minPt,maxPt));
   latex.DrawLatex(gXpos, gYpos-0.15, Form("m_{#mu#mu} in (%.2f, %.2f) GeV/#it{c}^{2}",minMass,maxMass));
@@ -223,9 +232,9 @@ void doOneDataFit(TTree *dataTree, TFile *saveFile, float binID[3])
   h_CorrM->Draw("zcol,text");
 
   // --> print some values
-  cout << " chi^2 = " << frame->chiSquare() << endl;
-  cout << " Entries " << inData.numEntries() << endl;
-  cout << " nJpsi = " << nJpsi.getVal() << " ± " << nJpsi.getError() << endl;
+  cout << " chi2/ndf = " << chi2_red << endl;
+  cout << " Entries  = " << inData.numEntries() << endl;
+  cout << " nJpsi    = " << nJpsi.getVal() << " ± " << nJpsi.getError() << endl;
 
   gStyle->SetOptFit(1);
 
